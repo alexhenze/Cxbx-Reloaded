@@ -242,6 +242,7 @@ file (GLOB CXBXR_SOURCE_GUIv1
 file (GLOB CXBXR_SOURCE_EMU
  "${CXBXR_ROOT_DIR}/HighPerformanceGraphicsEnabler.c"
  "${CXBXR_ROOT_DIR}/src/common/AddressRanges.cpp"
+ "${CXBXR_ROOT_DIR}/src/common/VerifyAddressRanges.cpp"
  "${CXBXR_ROOT_DIR}/src/common/util/gloffscreen/glextensions.cpp"
  "${CXBXR_ROOT_DIR}/src/common/util/gloffscreen/gloffscreen_common.cpp"
  "${CXBXR_ROOT_DIR}/src/common/util/gloffscreen/gloffscreen_wgl.cpp"
