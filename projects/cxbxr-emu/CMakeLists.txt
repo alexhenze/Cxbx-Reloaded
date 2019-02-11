@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.8)
-project(CxbxGUI)
+project(cxbxr-emu)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -7,19 +7,27 @@ set(CMAKE_CXX_STANDARD 17)
 # Suppress extra stuff from generated solution
 set(CMAKE_SUPPRESS_REGENERATION true)
 
+# Force exclude default libraries being included
+#set(CMAKE_CXX_STANDARD_LIBRARIES "")
+
 include_directories(
  "${CXBXR_ROOT_DIR}/src"
  "${CXBXR_ROOT_DIR}/src/common"
  "${CXBXR_ROOT_DIR}/src/common/Win32"
  "${CXBXR_ROOT_DIR}/import/OpenXDK/include"
+ "${CXBXR_ROOT_DIR}/import/distorm/include"
+ "${CXBXR_ROOT_DIR}/import/glew-2.0.0/include"
+ "${CXBXR_ROOT_DIR}/import/subhook"
+ "${CXBXR_ROOT_DIR}/import/DirectX9/include"
  "${CXBXR_ROOT_DIR}/import/XbSymbolDatabase"
  "${CXBXR_ROOT_DIR}/import/simpleini"
- "${CXBXR_ROOT_DIR}/import/DirectX9/include"
  "${CXBXR_ROOT_DIR}/import/libtommath"
  "${CXBXR_ROOT_DIR}/import/libtomcrypt/src/headers"
 )
 
 link_directories(
+ "${CXBXR_ROOT_DIR}/import/distorm/lib/Win32"
+ "${CXBXR_ROOT_DIR}/import/glew-2.0.0/lib/Release/Win32"
  "${CXBXR_ROOT_DIR}/import/DirectX9/lib"
 )
 
@@ -47,59 +55,54 @@ if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
  )
 endif()
 
-add_compile_definitions(NOMINMAX
+add_compile_definitions(
+ NOMINMAX
+ CXBXR_EMU_EXPORTS
 )
 
 file (GLOB RESOURCES
- 
  "${CXBXR_ROOT_DIR}/CONTRIBUTORS"
  "${CXBXR_ROOT_DIR}/COPYING"
  "${CXBXR_ROOT_DIR}/README.md"
- "${CXBXR_ROOT_DIR}/src/gui/resource/.editorconfig"
- "${CXBXR_ROOT_DIR}/src/gui/resource/CxbxGUI.rc"
- "${CXBXR_ROOT_DIR}/src/gui/resource/Cxbx-R.ico"
- "${CXBXR_ROOT_DIR}/src/gui/resource/resource.h"
- "${CXBXR_ROOT_DIR}/src/gui/resource/stdafx.h"
- "${CXBXR_ROOT_DIR}/src/gui/resource/targetver.h"
- "${CXBXR_ROOT_DIR}/src/gui/resource/Logo.bmp"
- "${CXBXR_ROOT_DIR}/src/gui/resource/Logo-License-CC4.bmp"
- "${CXBXR_ROOT_DIR}/src/.editorconfig"
 )
 
 source_group(TREE ${CXBXR_ROOT_DIR}/src PREFIX header FILES
  ${CXBXR_HEADER_GUIv1}
  ${CXBXR_HEADER_COMMON}
- "${CXBXR_ROOT_DIR}/src/gui/CxbxGUI.h"
+ ${CXBXR_HEADER_EMU}
+ "${CXBXR_ROOT_DIR}/src/emulator/targetver.h"
 )
 
 source_group(TREE ${CXBXR_ROOT_DIR}/src PREFIX source FILES 
  ${CXBXR_SOURCE_GUIv1}
  ${CXBXR_SOURCE_COMMON}
- "${CXBXR_ROOT_DIR}/src/gui/CxbxGUI.cpp"
- "${CXBXR_ROOT_DIR}/src/gui/stdafx.cpp"
+ ${CXBXR_SOURCE_EMU}
+ "${CXBXR_ROOT_DIR}/src/emulator/cxbxr-emu.cpp"
+ "${CXBXR_ROOT_DIR}/src/emulator/dllmain.cpp"
 )
 
 source_group(TREE ${CXBXR_ROOT_DIR} FILES ${RESOURCES})
 
-add_executable(CxbxGUI WIN32 ${RESOURCES}
-# ${CXBXR_HEADER_GUIv1}
-# ${CXBXR_HEADER_COMMON}
-# ${CXBXR_SOURCE_GUIv1}
-# ${CXBXR_SOURCE_COMMON}
+add_library(cxbxr-emu SHARED ${RESOURCES}
+ ${CXBXR_HEADER_COMMON}
+ ${CXBXR_HEADER_EMU}
+ "${CXBXR_ROOT_DIR}/src/emulator/targetver.h"
+ ${CXBXR_SOURCE_COMMON}
+ ${CXBXR_SOURCE_EMU}
  ${CXBXR_GIT_VERSION_H}
- "${CXBXR_ROOT_DIR}/src/gui/CxbxGUI.h"
- "${CXBXR_ROOT_DIR}/src/gui/CxbxGUI.cpp"
- "${CXBXR_ROOT_DIR}/src/gui/stdafx.cpp"
+ "${CXBXR_ROOT_DIR}/src/emulator/cxbxr-emu.cpp"
+ "${CXBXR_ROOT_DIR}/src/emulator/dllmain.cpp"
 )
 
 # Link and compile flags
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
- set_target_properties(CxbxGUI PROPERTIES
+ set_target_properties(cxbxr-emu PROPERTIES
   LINK_FLAGS "
   /INCREMENTAL:NO
   /LARGEADDRESSAWARE
   /SAFESEH:NO
+  /STACK:65536,65536
   /NODEFAULTLIB:libcmt
   "
   LINK_FLAGS_RELEASE "
@@ -142,11 +145,20 @@ set(WINS_LIB
  XINPUT9_1_0
 )
 
-target_link_libraries(CxbxGUI
+target_link_libraries(cxbxr-emu
  PUBLIC XbSymbolDatabase
+ subhook
+ vsbc
  libtomcrypt
 
  ${WINS_LIB}
 )
 
-add_dependencies(CxbxGUI CxbxEmulator cxbxr-debugger)
+add_dependencies(cxbxr-emu cxbxr-ldr)
+
+set(CXBXR_GLEW_DLL "${CXBXR_ROOT_DIR}/import/glew-2.0.0/bin/Release/Win32/glew32.dll")
+
+# Copy glew32.dll to build type's folder after build.
+add_custom_command(TARGET cxbxr-emu POST_BUILD
+ COMMAND ${CMAKE_COMMAND} -E copy ${CXBXR_GLEW_DLL} $<TARGET_FILE_DIR:cxbxr-emu>
+)
